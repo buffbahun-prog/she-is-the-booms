@@ -35,23 +35,22 @@ export function bitAdder8(carryIn: Bit, inp0: Bit8, inp1: Bit8): [sum: Bit8, car
     ]
 }
 
-export function bitAdderSubstractor32(subMode: Bit, inp0: Bit32, inp1: Bit32): [result: Bit32, carryOut: Bit, overflow: Bit] {
-
-    const [byte0Sum, carryOut0] = bitAdder8(subMode,
+export function bitAdder32(carryIn: Bit, inp0: Bit32, inp1: Bit32): [sum: Bit32, carryOur: Bit, overflow: Bit] {
+    const [byte0Sum, carryOut0] = bitAdder8(carryIn,
                                            inp0.slice(24, 32) as Bit8,
-                                           inp1.slice(24, 32).map(bit => xorGate(subMode, bit)) as Bit8
+                                           inp1.slice(24, 32) as Bit8
                                         );
     const [byte1Sum, carryOut1] = bitAdder8(carryOut0,
                                             inp0.slice(16, 24) as Bit8,
-                                            inp1.slice(16, 24).map(bit => xorGate(subMode, bit)) as Bit8,
+                                            inp1.slice(16, 24) as Bit8,
                                         );
     const [byte2Sum, carryOut2] = bitAdder8(carryOut1,
                                             inp0.slice(8, 16) as Bit8,
-                                            inp1.slice(8, 16).map(bit => xorGate(subMode, bit)) as Bit8,
+                                            inp1.slice(8, 16) as Bit8,
                                         );
     const [byte3Sum, carryOut3, lastBitCarryIn] = bitAdder8(carryOut2,
                                             inp0.slice(0, 8) as Bit8,
-                                            inp1.slice(0, 8).map(bit => xorGate(subMode, bit)) as Bit8,
+                                            inp1.slice(0, 8) as Bit8,
                                         );
 
     return [
@@ -62,4 +61,13 @@ export function bitAdderSubstractor32(subMode: Bit, inp0: Bit32, inp1: Bit32): [
         carryOut3,
         xorGate(lastBitCarryIn, carryOut3),
     ]
+}
+
+export function bitAdderSubstractor32(subMode: Bit, carryIn: Bit, inp0: Bit32, inp1: Bit32): [result: Bit32, carryOut: Bit, overflow: Bit] {
+    const invertedOnSubInp1 = inp1.map(bit => xorGate(subMode, bit)) as Bit32;
+    return bitAdder32(
+        orGate(subMode, carryIn),
+        inp0,
+        invertedOnSubInp1,
+    );
 }

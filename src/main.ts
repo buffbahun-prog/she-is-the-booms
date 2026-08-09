@@ -1,6 +1,9 @@
 import { bitAdderSubstractor32 } from "./virtual-machine/C.P.U/adders";
 import { Clock } from "./virtual-machine/C.P.U/clock";
+import { orGate } from "./virtual-machine/C.P.U/gates";
+import { ProgramCounter } from "./virtual-machine/C.P.U/program-counter";
 import type { Bit32 } from "./virtual-machine/types";
+import { binaryToDecimal, decimalToBinary } from "./virtual-machine/utils/convertion";
 
 // SET THIS: Set to true if your circuit automatically flips carryOut to act 
 // as an active-high Borrow Flag during subtraction operations.
@@ -155,7 +158,7 @@ testCases.forEach((tc, index) => {
   const val2 = numberToBit32(tc.inp1);
 
   // Execute your virtual machine implementation
-  const [sumBits, carryOut, overflow] = bitAdderSubstractor32(tc.subMode, val1, val2);
+  const [sumBits, carryOut, overflow] = bitAdderSubstractor32(tc.subMode, orGate(0, tc.subMode), val1, val2);
 
   const actualSumHex = bit32ToHex(sumBits);
   
@@ -189,3 +192,19 @@ console.log(`\n=== TEST RUN COMPLETE: ${passedCount}/${testCases.length} PASSED 
 // clock.addEventListener("clk", (evt) => {
 //   console.log("evt", evt);
 // });
+
+const counter = new ProgramCounter();
+counter.clear();
+console.log(binaryToDecimal(counter.get()));
+counter.increment();
+console.log(binaryToDecimal(counter.get()));
+counter.set(decimalToBinary(1036, 32) as Bit32);
+console.log(binaryToDecimal(counter.get()));
+counter.increment();
+console.log(binaryToDecimal(counter.get()));
+counter.increment();
+console.log(binaryToDecimal(counter.get()));
+counter.set([1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0]);
+console.log(binaryToDecimal(counter.get()));
+counter.increment();
+console.log(binaryToDecimal(counter.get()));
