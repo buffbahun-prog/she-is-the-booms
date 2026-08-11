@@ -1,6 +1,7 @@
 import { bitAdderSubstractor32 } from "./virtual-machine/C.P.U/adders";
 import { Clock } from "./virtual-machine/C.P.U/clock";
 import { orGate } from "./virtual-machine/C.P.U/gates";
+import { mux2To1, mux32Bit2To1 } from "./virtual-machine/C.P.U/mux_demux";
 import { ProgramCounter } from "./virtual-machine/C.P.U/program-counter";
 import type { Bit32 } from "./virtual-machine/types";
 import { binaryToDecimal, decimalToBinary } from "./virtual-machine/utils/convertion";
@@ -208,3 +209,11 @@ counter.set([1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0]);
 console.log(binaryToDecimal(counter.get()));
 counter.increment();
 console.log(binaryToDecimal(counter.get()));
+
+console.log(mux2To1(0, 1, 1));
+console.log(mux2To1(0, 1, 0));
+console.log(mux32Bit2To1(
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  1,
+));
