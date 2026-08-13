@@ -3,6 +3,7 @@ import { Clock } from "./virtual-machine/C.P.U/clock";
 import { orGate } from "./virtual-machine/C.P.U/gates";
 import { mux2To1, mux32Bit2To1 } from "./virtual-machine/C.P.U/mux_demux";
 import { ProgramCounter } from "./virtual-machine/C.P.U/program-counter";
+import { logicalLeftShifter } from "./virtual-machine/C.P.U/shifter_rotator";
 import type { Bit32 } from "./virtual-machine/types";
 import { binaryToDecimal, decimalToBinary } from "./virtual-machine/utils/convertion";
 
@@ -217,3 +218,383 @@ console.log(mux32Bit2To1(
   [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
   1,
 ));
+
+// logicalLeftShifter.test.ts
+
+/* -------------------------------------------------------------------------- */
+/* Helpers                                                                    */
+/* -------------------------------------------------------------------------- */
+
+function bits(binary: string): Bit32 {
+    if (binary.length !== 32) {
+        throw new Error(`Expected 32-bit string, got ${binary.length} bits`);
+    }
+
+    return binary.split("").map(Number) as Bit32;
+}
+
+function binary(data: Bit32): string {
+    return data.join("");
+}
+
+function shiftBits(shift: number): Bit32 {
+    if (shift < 0 || shift > 0xFFFFFFFF) {
+        throw new Error(`Invalid 32-bit shift value: ${shift}`);
+    }
+
+    return bits(
+        (shift >>> 0)
+            .toString(2)
+            .padStart(32, "0")
+    );
+}
+
+/*
+ * Expected result according to the specification of our shifter:
+ *
+ *   0 <= shift <= 31  -> logical left shift
+ *   shift >= 32       -> 32 zeroes
+ */
+function expectedLeftShift(data: string, shift: number): string {
+    const value = parseInt(data, 2) >>> 0;
+
+    if (shift >= 32) {
+        return "0".repeat(32);
+    }
+
+    return ((value << shift) >>> 0)
+        .toString(2)
+        .padStart(32, "0");
+}
+
+function assertShift(
+    data: string,
+    shift: number,
+    expected?: string
+): void {
+    const actual = binary(
+        logicalLeftShifter(
+            bits(data),
+            shiftBits(shift)
+        )
+    );
+
+    const expectedResult =
+        expected ?? expectedLeftShift(data, shift);
+
+    if (actual !== expectedResult) {
+        throw new Error(
+            [
+                `FAIL: ${data} << ${shift}`,
+                `Expected: ${expectedResult}`,
+                `Actual:   ${actual}`,
+            ].join("\n")
+        );
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+/* 1. Zero shift                                                             */
+/* -------------------------------------------------------------------------- */
+
+console.log("1. Zero shift");
+
+assertShift(
+    "00000000000000000000000000000000",
+    0
+);
+
+assertShift(
+    "00000000000000000000000000000001",
+    0
+);
+
+assertShift(
+    "11111111111111111111111111111111",
+    0
+);
+
+assertShift(
+    "10101010101010101010101010101010",
+    0
+);
+
+assertShift(
+    "01010101010101010101010101010101",
+    0
+);
+
+assertShift(
+    "11001100110011001100110011001100",
+    0
+);
+
+/* -------------------------------------------------------------------------- */
+/* 2. Simple shifts                                                          */
+/* -------------------------------------------------------------------------- */
+
+console.log("2. Simple shifts");
+
+assertShift(
+    "00000000000000000000000000000001",
+    1
+);
+
+assertShift(
+    "00000000000000000000000000000001",
+    2
+);
+
+assertShift(
+    "00000000000000000000000000000001",
+    3
+);
+
+assertShift(
+    "00000000000000000000000000000001",
+    4
+);
+
+assertShift(
+    "00000000000000000000000000000001",
+    8
+);
+
+assertShift(
+    "00000000000000000000000000000001",
+    16
+);
+
+assertShift(
+    "00000000000000000000000000000001",
+    31
+);
+
+/* -------------------------------------------------------------------------- */
+/* 3. MSB and LSB boundary tests                                             */
+/* -------------------------------------------------------------------------- */
+
+console.log("3. MSB / LSB boundary tests");
+
+// MSB shifted out immediately.
+assertShift(
+    "10000000000000000000000000000000",
+    1
+);
+
+// LSB travels all the way to the MSB.
+assertShift(
+    "00000000000000000000000000000001",
+    31
+);
+
+// Two low bits: only the second-lowest bit survives a 31-bit shift.
+assertShift(
+    "00000000000000000000000000000011",
+    31
+);
+
+// MSB shifted by 31 -> zero.
+assertShift(
+    "10000000000000000000000000000000",
+    31
+);
+
+/* -------------------------------------------------------------------------- */
+/* 4. All zeroes                                                             */
+/* -------------------------------------------------------------------------- */
+
+console.log("4. All zeroes");
+
+for (let shift = 0; shift <= 31; shift++) {
+    assertShift(
+        "00000000000000000000000000000000",
+        shift
+    );
+}
+
+/* -------------------------------------------------------------------------- */
+/* 5. All ones                                                               */
+/* -------------------------------------------------------------------------- */
+
+console.log("5. All ones");
+
+for (let shift = 0; shift <= 31; shift++) {
+    assertShift(
+        "11111111111111111111111111111111",
+        shift
+    );
+}
+
+/* -------------------------------------------------------------------------- */
+/* 6. Alternating patterns                                                   */
+/* -------------------------------------------------------------------------- */
+
+console.log("6. Alternating patterns");
+
+const alternatingPatterns = [
+    "10101010101010101010101010101010",
+    "01010101010101010101010101010101",
+];
+
+for (const data of alternatingPatterns) {
+    for (const shift of [0, 1, 2, 3, 4, 8, 16, 24, 31]) {
+        assertShift(data, shift);
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+/* 7. Repeating patterns                                                     */
+/* -------------------------------------------------------------------------- */
+
+console.log("7. Repeating patterns");
+
+const repeatingPatterns = [
+    "11001100110011001100110011001100",
+    "00110011001100110011001100110011",
+    "11110000111100001111000011110000",
+    "00001111000011110000111100001111",
+    "10011001100110011001100110011001",
+    "01100110011001100110011001100110",
+];
+
+for (const data of repeatingPatterns) {
+    for (let shift = 0; shift <= 31; shift++) {
+        assertShift(data, shift);
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+/* 8. Interesting arbitrary values                                           */
+/* -------------------------------------------------------------------------- */
+
+console.log("8. Arbitrary values");
+
+const arbitraryValues = [
+    "00010010001101000101011001111000",
+    "10110101100100101110100011010011",
+    "11001010111100001111000010101010",
+    "01100110100101101001011001101001",
+    "10011001100110011001100110011001",
+    "11100011101010100101010111100010",
+    "01001110110101011000111100101101",
+];
+
+for (const data of arbitraryValues) {
+    for (const shift of [0, 1, 2, 3, 5, 7, 8, 15, 16, 17, 23, 24, 30, 31]) {
+        assertShift(data, shift);
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+/* 9. Every legal shift amount                                               */
+/* -------------------------------------------------------------------------- */
+
+console.log("9. Every shift amount: 0–31");
+
+const testData = [
+    "00000000000000000000000000000001",
+    "00000000000000000000000000000011",
+    "10101010101010101010101010101010",
+    "01010101010101010101010101010101",
+    "11111111111111111111111111111111",
+    "10000000000000000000000000000000",
+    "11001100110011001100110011001100",
+    "00110011001100110011001100110011",
+    "10110101100100101110100011010011",
+];
+
+for (const data of testData) {
+    for (let shift = 0; shift <= 31; shift++) {
+        assertShift(data, shift);
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+/* 10. Out-of-range shifts                                                   */
+/* -------------------------------------------------------------------------- */
+
+console.log("10. Out-of-range shifts");
+
+// Your implementation explicitly defines:
+// shift >= 32 -> zero
+
+const outOfRangeData = [
+    "00000000000000000000000000000001",
+    "11111111111111111111111111111111",
+    "10101010101010101010101010101010",
+    "01010101010101010101010101010101",
+    "11001100110011001100110011001100",
+];
+
+for (const data of outOfRangeData) {
+    for (const shift of [32, 33, 34, 63, 64, 127, 128, 255]) {
+        assertShift(
+            data,
+            shift,
+            "00000000000000000000000000000000"
+        );
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+/* 11. Single-bit exhaustive test                                            */
+/* -------------------------------------------------------------------------- */
+
+console.log("11. Single-bit exhaustive test");
+
+for (let position = 0; position < 32; position++) {
+    const data = Array(32).fill(0) as Bit32;
+
+    data[position] = 1;
+
+    const dataString = binary(data);
+
+    for (let shift = 0; shift <= 31; shift++) {
+        assertShift(dataString, shift);
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+/* 12. Powers of two                                                         */
+/* -------------------------------------------------------------------------- */
+
+console.log("12. Powers of two");
+
+for (let position = 0; position < 32; position++) {
+    const data = (2 ** position)
+        .toString(2)
+        .padStart(32, "0");
+
+    for (const shift of [0, 1, 2, 4, 8, 16, 31]) {
+        assertShift(data, shift);
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+/* 13. Randomized testing                                                    */
+/* -------------------------------------------------------------------------- */
+
+console.log("13. Randomized testing");
+
+for (let i = 0; i < 10_000; i++) {
+    const value = Math.floor(Math.random() * 2 ** 32) >>> 0;
+
+    // Include 32 as well because your implementation explicitly
+    // considers it invalid.
+    const shift = Math.floor(Math.random() * 33);
+
+    const data = value
+        .toString(2)
+        .padStart(32, "0");
+
+    assertShift(data, shift);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Done                                                                       */
+/* -------------------------------------------------------------------------- */
+
+console.log("======================================");
+console.log("All logicalLeftShifter tests passed!");
+console.log("======================================");
