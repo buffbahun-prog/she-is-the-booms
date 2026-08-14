@@ -1,4 +1,4 @@
-import type { Bit, Bit5 } from "../types";
+import type { Bit } from "../types";
 
 export function andGate(bit0: Bit, bit1: Bit): Bit {
     if (bit0 === 1 && bit1 === 1) return 1;
